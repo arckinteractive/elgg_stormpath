@@ -22,6 +22,8 @@ function init() {
 
 		$importance = elgg_get_plugin_setting('importance', PLUGIN_ID);
 		register_pam_handler(__NAMESPACE__ . '\\pam_handler', $importance);
+		
+		elgg_register_page_handler('stormpath', __NAMESPACE__ . '\\pagehandler');
 
 		// register events
 		// add existing users to stormpath
@@ -41,6 +43,9 @@ function init() {
 
 		// canEdit override to allow not logged in code to disable a user
 		elgg_register_plugin_hook_handler('permissions_check', 'user', __NAMESPACE__ . '\\allow_new_user_can_edit');
+		
+		elgg_register_action('user/requestnewpassword', __DIR__ . '/actions/stormpath/requestnewpassword.php', 'public');
+		elgg_register_action('user/passwordreset', __DIR__ . '/actions/stormpath/passwordreset.php', 'public');
 	}
 }
 
@@ -179,7 +184,16 @@ function is_elgg18() {
 	return $is_elgg18;
 }
 
+/**
+ * Can we allow the user with the credentials to log in?
+ * Check stormpath, create the user if they can log in and don't exist
+ * Enable the user if they can log in but were waiting for email verification
+ * 
+ * @param type $credentials
+ * @return boolean
+ */
 function pam_handler($credentials) {
+
 	// try to authenticate first
 	$application = get_application();
 	$authResult = $application->authenticate($credentials['username'], $credentials['password']);
@@ -206,7 +220,7 @@ function pam_handler($credentials) {
 
 	// custom context gives us permission to do this
 	elgg_push_context('stormpath_validate_user');
-	
+
 	// if we don't have a user we need to create one
 	if (!$user) {
 		$user = new \ElggUser();
@@ -220,11 +234,11 @@ function pam_handler($credentials) {
 		$user->container_guid = 0; // Users aren't contained by anyone, even if they are admin created.
 		$user->language = get_current_language();
 		$user->save();
-		
+
 		$user->__stormpath_user = $account->href;
-		
+
 		elgg_set_user_validation_status($user->guid, TRUE, 'stormpath');
-		
+
 		// Turn on email notifications by default
 		set_user_notification_setting($user->getGUID(), 'email', true);
 	}
@@ -238,10 +252,25 @@ function pam_handler($credentials) {
 
 	elgg_pop_context();
 	access_show_hidden_entities($show_hidden);
-	
+
 	if ($user && $user->isEnabled()) {
 		return true;
 	}
 
+	return false;
+}
+
+
+
+function pagehandler($page) {
+	switch ($page[0]) {
+		case 'passwordreset':
+			echo elgg_view('resources/stormpath/passwordreset', array(
+				'sptoken' => get_input('sptoken')
+			));
+			return true;
+			break;
+	}
+	
 	return false;
 }
