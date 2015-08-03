@@ -6,6 +6,7 @@ const PLUGIN_ID = 'elgg_stormpath';
 const PLUGIN_VERSION = 20150730;
 
 require_once __DIR__ . '/lib/events.php';
+require_once __DIR__ . '/lib/hooks.php';
 
 elgg_register_event_handler('init', 'system', __NAMESPACE__ . '\\init');
 
@@ -25,13 +26,6 @@ function init() {
 		
 		elgg_register_page_handler('stormpath', __NAMESPACE__ . '\\pagehandler');
 
-		// register events
-		// add existing users to stormpath
-		if (is_elgg18()) {
-			elgg_register_event_handler('login', 'user', __NAMESPACE__ . '\\event_user_login', 1000);
-		} else {
-			elgg_register_event_handler('login:after', 'user', __NAMESPACE__ . '\\event_user_login', 1000);
-		}
 		// add new users to stormpath
 		elgg_register_event_handler('create', 'user', __NAMESPACE__ . '\\event_user_create', 1000);
 
@@ -46,6 +40,18 @@ function init() {
 		
 		elgg_register_action('user/requestnewpassword', __DIR__ . '/actions/stormpath/requestnewpassword.php', 'public');
 		elgg_register_action('user/passwordreset', __DIR__ . '/actions/stormpath/passwordreset.php', 'public');
+		
+		
+		// differentiation for 1.8/newer compatibility
+		if (is_elgg18()) {
+			elgg_register_event_handler('login', 'user', __NAMESPACE__ . '\\event_user_login', 1000);
+			elgg_unregister_plugin_hook_handler('usersettings:save', 'user', 'users_settings_save');
+			elgg_register_plugin_hook_handler('usersettings:save', 'user', __NAMESPACE__ . '\\users_settings_save');
+		} else {
+			elgg_register_event_handler('login:after', 'user', __NAMESPACE__ . '\\event_user_login', 1000);
+			elgg_unregister_plugin_hook_handler('usersettings:save', 'user', '_elgg_set_user_password');
+			elgg_register_plugin_hook_handler('usersettings:save', 'user', __NAMESPACE__ . '\\set_user_password');
+		}
 	}
 }
 
@@ -66,6 +72,11 @@ function api_keys_exists() {
  * @return string
  */
 function get_api_file() {
+	static $file;
+	if ($file) {
+		return $file;
+	}
+	
 	$dir = elgg_get_config('dataroot') . 'stormpath';
 
 	$file = $dir . '/apiKey.properties';
@@ -175,6 +186,12 @@ function add_to_stormpath(\ElggUser $user, $password) {
  * @return boolean
  */
 function is_elgg18() {
+	static $is_elgg18;
+	
+	if ($is_elgg18 !== null) {
+		return $is_elgg18;
+	}
+	
 	if (is_callable('elgg_get_version')) {
 		return false; // this is newer than 1.8
 	}
@@ -266,6 +283,12 @@ function pagehandler($page) {
 	switch ($page[0]) {
 		case 'passwordreset':
 			echo elgg_view('resources/stormpath/passwordreset', array(
+				'sptoken' => get_input('sptoken')
+			));
+			return true;
+			break;
+		case 'emailverification':
+			echo elgg_view('resources/stormpath/emailverification', array(
 				'sptoken' => get_input('sptoken')
 			));
 			return true;

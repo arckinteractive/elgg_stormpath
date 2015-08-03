@@ -2,10 +2,14 @@
 
 namespace Arck\Stormpath;
 
-$application = get_application();
-
 try {
-	$account = $application->verifyPasswordResetToken($vars['sptoken']);	
+	$application = get_application();
+	if ($application) {
+		$account = $application->verifyPasswordResetToken($vars['sptoken']);
+	}
+	else {
+		forward('forgotpassword');
+	}
 } catch (\Exception $exc) {
 	register_error($exc->getMessage());
 	forward('forgotpassword');

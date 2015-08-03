@@ -14,7 +14,7 @@ namespace Arck\Stormpath;
  */
 function disable_new_user($hook, $type, $value, $params) {
 	$user = elgg_extract('user', $params);
-	
+
 	if (!elgg_get_plugin_setting('email_validate', PLUGIN_ID)) {
 		return;
 	}
@@ -49,7 +49,7 @@ function disable_new_user($hook, $type, $value, $params) {
 
 	// set user as unvalidated and send out validation email
 	elgg_set_user_validation_status($user->guid, FALSE);
-	
+
 	// trigger the stormpath email validation
 
 	elgg_pop_context();
@@ -57,7 +57,6 @@ function disable_new_user($hook, $type, $value, $params) {
 
 	return $value;
 }
-
 
 /**
  * Override the canEdit() call for if we're in the context of registering a new user.
@@ -83,4 +82,113 @@ function allow_new_user_can_edit($hook, $type, $return, $params) {
 	}
 
 	return;
+}
+
+
+function users_settings_save($hook, $type, $return, $params) {
+	elgg_set_user_language();
+	//elgg_set_user_password();
+	set_user_password();
+	elgg_set_user_default_access();
+	elgg_set_user_name();
+	elgg_set_user_email();
+}
+
+/**
+ * Called on usersettings save action - changes the users password
+ * locally and on stormpath
+ * 
+ * @param type $hook
+ * @param type $type
+ * @param type $return
+ * @param type $params
+ * @return boolean|null
+ */
+function set_user_password($hook = 'usersettings:save', $type = 'user', $return = true, $params = array()) {
+	$current_password = get_input('current_password', null, false);
+	$password = get_input('password', null, false);
+	$password2 = get_input('password2', null, false);
+	$user_guid = get_input('guid');
+
+	if ($user_guid) {
+		$user = get_user($user_guid);
+	} else {
+		$user = elgg_get_logged_in_user_entity();
+	}
+
+	if ($user && $password) {
+		// let admin user change anyone's password without knowing it except his own.
+		if (!elgg_is_admin_logged_in() || elgg_is_admin_logged_in() && $user->guid == elgg_get_logged_in_user_guid()) {
+			$credentials = array(
+				'username' => $user->email,
+				'password' => $current_password
+			);
+
+			try {
+				pam_handler($credentials);
+			} catch (\LoginException $e) {
+				register_error(elgg_echo('LoginException:ChangePasswordFailure'));
+				return false;
+			}
+		}
+
+		try {
+			$result = validate_password($password);
+		} catch (\RegistrationException $e) {
+			register_error($e->getMessage());
+			return false;
+		}
+
+		if ($result) {
+			if ($password == $password2) {
+
+				// change it on stormpath
+				if ($user->__stormpath_user) {
+					try {
+						$client = get_client();
+						$account = $client->dataStore->getResource($user->__stormpath_user, \Stormpath\Stormpath::ACCOUNT);
+						$account->password = $password;
+						$account->save();
+
+						// change it locally
+						$user->salt = _elgg_generate_password_salt();
+						$user->password = generate_user_password($user, $password);
+
+						if (is_elgg18()) {
+							$user->code = '';
+							if ($user->guid == elgg_get_logged_in_user_guid() && !empty($_COOKIE['elggperm'])) {
+								// regenerate remember me code so no other user could
+								// use it to authenticate later
+								$code = _elgg_generate_remember_me_token();
+								$_SESSION['code'] = $code;
+								$user->code = md5($code);
+								setcookie("elggperm", $code, (time() + (86400 * 30)), "/");
+							}
+						} else {
+							_elgg_services()->persistentLogin->handlePasswordChange($user, elgg_get_logged_in_user_entity());
+						}
+					} catch (\Exception $exc) {
+						register_error($exc->getMessage());
+						return false;
+					}
+				}
+
+				if ($user->save()) {
+					system_message(elgg_echo('user:password:success'));
+					return true;
+				} else {
+					register_error(elgg_echo('user:password:fail'));
+				}
+			} else {
+				register_error(elgg_echo('user:password:fail:notsame'));
+			}
+		} else {
+			register_error(elgg_echo('user:password:fail:tooshort'));
+		}
+	} else {
+		// no change
+		return null;
+	}
+
+	return false;
 }
