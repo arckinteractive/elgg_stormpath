@@ -27,6 +27,7 @@ class BaseTest extends \PHPUnit_Framework_TestCase
     const BASE_URL = 'STORMPATH_BASE_URL';
     protected static $client;
 
+
     public static function setUpBeforeClass()
     {
         if (self::$client)
@@ -73,6 +74,28 @@ class BaseTest extends \PHPUnit_Framework_TestCase
         \Stormpath\Client::$apiKeyProperties = $apiKeyProperties;
         \Stormpath\Client::$baseUrl = $baseUrl;
         \Stormpath\Client::$cacheManager = 'Array';
+
+        self::$client = \Stormpath\Client::getInstance();
+    }
+
+    /**
+     * This function instantiates a new client but doesn't modify
+     * the BaseTest::$client variable.
+     */
+    protected function newClientInstance()
+    {
+        $builder = new \Stormpath\ClientBuilder();
+
+        $newClient = $builder->setApiKeyFileLocation(\Stormpath\Client::$apiKeyFileLocation)->
+            setApiKeyProperties(\Stormpath\Client::$apiKeyProperties)->
+            setApiKeyIdPropertyName(\Stormpath\Client::$apiKeyIdPropertyName)->
+            setApiKeySecretPropertyName(\Stormpath\Client::$apiKeySecretPropertyName)->
+            setCacheManager(\Stormpath\Client::$cacheManager)->
+            setCacheManagerOptions(\Stormpath\Client::$cacheManagerOptions)->
+            setBaseURL(\Stormpath\Client::$baseUrl)->
+            build();
+
+        return $newClient;
     }
 
     public function testClient()
@@ -83,6 +106,7 @@ class BaseTest extends \PHPUnit_Framework_TestCase
 
     protected static function createResource($parentHref, \Stormpath\Resource\Resource $resource, array $options = array())
     {
+
         if (!(strpos($parentHref, '/') === 0))
         {
             $parentHref = '/' . $parentHref;
@@ -91,5 +115,7 @@ class BaseTest extends \PHPUnit_Framework_TestCase
         $resource = self::$client->dataStore->create($parentHref, $resource, get_class($resource), $options);
         return $resource;
     }
+
+
 
 }

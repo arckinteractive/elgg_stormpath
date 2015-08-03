@@ -18,6 +18,7 @@
 
 namespace Stormpath\Resource;
 
+use Stormpath\Authc\Api\ApiKeyEncryptionOptions;
 use Stormpath\Client;
 use Stormpath\Stormpath;
 
@@ -37,6 +38,7 @@ class Account extends InstanceResource implements Deletable
     const GROUP_MEMBERSHIPS        = "groupMemberships";
     const FULL_NAME                = "fullName";
     const TENANT                   = "tenant";
+    const PROVIDER_DATA			   = "providerData";
 
     const PATH                     = "accounts";
 
@@ -167,6 +169,35 @@ class Account extends InstanceResource implements Deletable
 
         return $this->getResourceProperty(self::TENANT, Stormpath::TENANT, $options);
     }
+    
+    public function getProviderData(array $options = array())
+    {
+    	$value = $this->getProperty(self::PROVIDER_DATA);
+    	
+    	if ($value instanceof ProviderData)
+    	{
+    		return $value;
+    	}
+    	
+    	if ($value instanceof \stdClass)
+    	{
+    		$href = $value->href;
+    		
+    		if (empty($href))
+    		{
+    			throw new \InvalidArgumentException("providerData resource does not contain its required href property.");    			
+    		}
+    		
+    		$providerData = $this->getDataStore()->getResource($href, Stormpath::PROVIDER_DATA, array(
+                'propertyId' => 'providerId'
+            ));
+    		$this->setProperty(self::PROVIDER_DATA, $providerData);
+    		
+    		return $providerData;
+    	}
+    	
+    	throw new \InvalidArgumentException("providerData does not match expected type ProviderData or stdClass");
+    }
 
     public function addGroup(Group $group, array $options = array())
     {
@@ -176,5 +207,23 @@ class Account extends InstanceResource implements Deletable
     public function delete() {
 
         $this->getDataStore()->delete($this);
+    }
+
+    public function createApiKey($options = array())
+    {
+        $apiKeyOptions = new ApiKeyEncryptionOptions($options);
+        $options = array_merge($options, $apiKeyOptions->toArray());
+
+        $apiKey = $this->getDataStore()->instantiate(Stormpath::API_KEY);
+
+        $apiKey = $this->getDataStore()->create($this->getHref() . '/' . ApiKey::PATH,
+            $apiKey, Stormpath::API_KEY, $options);
+
+        if ($apiKey)
+        {
+            $apiKey->setApiKeyMetadata($apiKeyOptions);
+        }
+
+        return $apiKey;
     }
 }

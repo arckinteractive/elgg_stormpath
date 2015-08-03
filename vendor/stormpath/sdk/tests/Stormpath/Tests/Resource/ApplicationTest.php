@@ -21,6 +21,7 @@ namespace Stormpath\Tests\Resource;
 use JWT;
 use Stormpath\Client;
 use Stormpath\Resource\Application;
+use Stormpath\Stormpath;
 use Stormpath\Util\UUID;
 
 class ApplicationTest extends \Stormpath\Tests\BaseTest {
@@ -33,7 +34,7 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
 
     protected static function init()
     {
-        self::$application = \Stormpath\Resource\Application::instantiate(array('name' => 'Main App for the tests' .md5(time()), 'description' => 'Description of Main App', 'status' => 'enabled'));
+        self::$application = \Stormpath\Resource\Application::instantiate(array('name' => 'Main App for the tests' .md5(time().microtime().uniqid()), 'description' => 'Description of Main App', 'status' => 'enabled'));
         self::createResource(\Stormpath\Resource\Application::PATH, self::$application, array('createDirectory' => true));
         self::$inited = true;
     }
@@ -115,15 +116,15 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
 
     protected function createAccount()
     {
-        self::$directory = \Stormpath\Resource\Directory::instantiate(array('name' => md5(time())));
+        self::$directory = \Stormpath\Resource\Directory::instantiate(array('name' => md5(time().microtime().uniqid())));
 
         self::createResource(\Stormpath\Resource\Directory::PATH, self::$directory);
 
         self::$account = \Stormpath\Resource\Account::instantiate(array('givenName' => 'Account Name',
             'middleName' => 'Middle Name',
             'surname' => 'Surname',
-            'username' => md5(time()) . 'username',
-            'email' => md5(time()) .'@unknown123.kot',
+            'username' => md5(time().microtime().uniqid()) . 'username',
+            'email' => md5(time().microtime().uniqid()) .'@unknown123.kot',
             'password' => 'superP4ss'));
 
         self::$directory->createAccount(self::$account);
@@ -193,13 +194,13 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
 
     public function testCreate()
     {
-        $application = \Stormpath\Resource\Application::create(array('name' => 'Another App'. md5(time())));
+        $application = \Stormpath\Resource\Application::create(array('name' => 'Another App'. md5(time().microtime().uniqid())));
 
         $this->assertInstanceOf('Stormpath\Resource\Application', $application);
         $this->assertContains('Another App', $application->name);
 
         // testing the creation from an application instance
-        $application2 = \Stormpath\Resource\Application::instantiate(array('name' => 'Yet another App'. md5(time())));
+        $application2 = \Stormpath\Resource\Application::instantiate(array('name' => 'Yet another App'. md5(time().microtime().uniqid())));
         \Stormpath\Resource\Application::create($application2);
 
         $this->assertInstanceOf('Stormpath\Resource\Application', $application2);
@@ -236,8 +237,8 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
 
         $account = \Stormpath\Resource\Account::instantiate(array('givenName' => 'Account Name',
                                                                   'surname' => 'Surname',
-                                                                  'username' => md5(time()) . 'username',
-                                                                  'email' => md5(time()) .'@unknown123.kot',
+                                                                  'username' => md5(time().microtime().uniqid()) . 'username',
+                                                                  'email' => md5(time().microtime().uniqid()) .'@unknown123.kot',
                                                                   'password' => 'superP4ss'));
 
         $application->createAccount($account);
@@ -249,12 +250,34 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
         $account->delete();
     }
 
+    public function testCreateAccountWithCustomData()
+    {
+        $application = self::$application;
+
+        $account = \Stormpath\Resource\Account::instantiate(array('givenName' => 'Account Name',
+            'surname' => 'Surname',
+            'username' => md5(time().microtime().uniqid()) . 'username',
+            'email' => md5(time().microtime().uniqid()) .'@unknown123.kot',
+            'password' => 'superP4ss'));
+
+        $customData = $account->customData;
+        $customData->phone = "12345";
+
+        $account = $application->createAccount($account);
+
+        $newClient = self::newClientInstance();
+        $account = $newClient->dataStore->getResource($account->href, Stormpath::ACCOUNT);
+        $this->assertEquals("12345", $account->customData->phone);
+
+        $account->delete();
+    }
+
     public function testCreateGroup()
     {
         $application = self::$application;
 
         $group = new \stdClass();
-        $group->name = 'New Group in town'.md5(time());
+        $group->name = 'New Group in town'.md5(time().microtime().uniqid());
 
         $group = \Stormpath\Resource\Group::instantiate($group);
         $application->createGroup($group);
@@ -270,7 +293,7 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
     {
         $application = self::$application;
 
-        $directory = \Stormpath\Resource\Directory::create(array('name' => 'New Account Store in town'.md5(time())));
+        $directory = \Stormpath\Resource\Directory::create(array('name' => 'New Account Store in town'.md5(time().microtime().uniqid())));
 
         $accountStoreMapping = \Stormpath\Resource\AccountStoreMapping::instantiate(array('accountStore' => $directory));
 
@@ -299,6 +322,69 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
         $this->assertEquals('super_unique_email@unknown123.kot', $account->email);
 
         $account->delete();
+    }
+    
+    public function testSendPasswordResetEmailWithAccountStore()
+    {
+        $application = self::$application;
+
+        $groupA = new \stdClass();
+        $groupA->name = 'New Group in town A: '.md5(time().microtime().uniqid());
+        $groupA = \Stormpath\Resource\Group::instantiate($groupA);
+        $application->createGroup($groupA);
+
+        $groupB = new \stdClass();
+        $groupB->name = 'New Group in town B: '.md5(time().microtime().uniqid());
+        $groupB = \Stormpath\Resource\Group::instantiate($groupB);
+        $application->createGroup($groupB);
+
+        $accountStoreMappingA = \Stormpath\Resource\AccountStoreMapping::instantiate(array('accountStore' => $groupA));
+        $application->createAccountStoreMapping($accountStoreMappingA);
+
+        $accountStoreMappingB = \Stormpath\Resource\AccountStoreMapping::instantiate(array('accountStore' => $groupB));
+        $application->createAccountStoreMapping($accountStoreMappingB);
+
+        $account = \Stormpath\Resource\Account::instantiate(array(
+            'givenName' => 'Account Name',
+            'surname' => 'Surname',
+            'username' => 'super_unique_username',
+            'email' => 'super_dupper_unique_email@unknown123.kot',
+            'password' => 'superP4ss'));
+
+        $application->createAccount($account);
+        $groupA->addAccount($account);
+
+        $account = $application->sendPasswordResetEmail('super_dupper_unique_email@unknown123.kot',
+            array("accountStore" => $accountStoreMappingA->getAccountStore()));
+        $this->assertEquals('super_dupper_unique_email@unknown123.kot', $account->email);
+
+        try {
+            // lookup email address in an AccountStore that doesn't contain the corresponding account
+            $account = $application->sendPasswordResetEmail('super_dupper_unique_email@unknown123.kot',
+                array("accountStore" => $accountStoreMappingB->getAccountStore()));
+
+            $account->delete();
+            $accountStoreMappingB->delete();
+            $accountStoreMappingA->delete();
+            $groupB->delete();
+            $groupA->delete();
+
+            $this->fail('sendPasswordResetEmail should have failed.');
+        }
+        catch (\Stormpath\Resource\ResourceError $re)
+        {
+            $this->assertEquals(400, $re->getStatus());
+            $this->assertEquals(2016, $re->getErrorCode());
+            $this->assertContains('does not match a known resource', $re->getMessage());
+            $this->assertContains('does not match a known resource', $re->getDeveloperMessage());
+            $this->assertContains('2016', $re->getMoreInfo());
+        }
+
+        $account->delete();
+        $accountStoreMappingB->delete();
+        $accountStoreMappingA->delete();
+        $groupB->delete();
+        $groupA->delete();
     }
 
     public function testAuthenticate()
@@ -340,12 +426,12 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
         $application = self::$application;
 
         $groupA = new \stdClass();
-        $groupA->name = 'New Group in town A: '.md5(time());
+        $groupA->name = 'New Group in town A: '.md5(time().microtime().uniqid());
         $groupA = \Stormpath\Resource\Group::instantiate($groupA);
         $application->createGroup($groupA);
 
         $groupB = new \stdClass();
-        $groupB->name = 'New Group in town B: '.md5(time());
+        $groupB->name = 'New Group in town B: '.md5(time().microtime().uniqid());
         $groupB = \Stormpath\Resource\Group::instantiate($groupB);
         $application->createGroup($groupB);
 
@@ -425,7 +511,7 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
     {
         $application = self::$application;
 
-        $application->name = 'Main App for the tests changed' .md5(time());
+        $application->name = 'Main App for the tests changed' .md5(time().microtime().uniqid());
         $application->description = 'Description of Main App changed';
         $application->status = 'disabled';
 
@@ -438,6 +524,42 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
         $application->status = 'enabled';
 
         $application->save();
+    }
+
+    public function testApiKeyManagement()
+    {
+        $application = self::$application;
+
+        $account = \Stormpath\Resource\Account::instantiate(array(
+            'givenName' => 'Account Name',
+            'surname' => 'Surname',
+            'username' => md5(time()) . 'username',
+            'email' => md5(time()) .'@unknown123.kot',
+            'password' => 'superP4ss'));
+
+        $application->createAccount($account);
+        $account = \Stormpath\Resource\Account::get($account->href);
+
+        $newApiKey = $account->createApiKey();
+        $this->assertNotEmpty($newApiKey->id);
+
+        $apiKey = $application->getApiKey($newApiKey->id);
+        $this->assertEquals($newApiKey, $apiKey);
+
+        $encryptedApiKey = $application->getApiKey($newApiKey->id,
+            array('encryptSecret' => true));
+
+        $this->assertEquals($apiKey->secret, $encryptedApiKey->secret);
+
+        $apiKey->status = 'DISABLED';
+        $apiKey->save();
+        $this->assertEquals('DISABLED', $apiKey->status);
+
+        $apiKey->delete();
+        $apiKey = $application->getApiKey($newApiKey->id);
+        $this->assertNull($apiKey);
+
+        $account->delete();
     }
 
     public function testAddingCustomData()
@@ -474,7 +596,8 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
 
         $cd->remove('unitTest');
 
-        $application = \Stormpath\Resource\Application::get(self::$application->href);
+        $newClient = self::newClientInstance();
+        $application = $newClient->dataStore->getResource(self::$application->href, Stormpath::APPLICATION);
         $customData = $application->customData;
         $this->assertNull($customData->unitTest);
     }
@@ -490,7 +613,8 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
 
         $cd->delete();
 
-        $application = \Stormpath\Resource\Application::get(self::$application->href);
+        $newClient = self::newClientInstance();
+        $application = $newClient->dataStore->getResource(self::$application->href, Stormpath::APPLICATION);
         $customData = $application->customData;
         $this->assertNull($customData->unitTest);
         $this->assertNull($customData->rank);
@@ -503,7 +627,7 @@ class ApplicationTest extends \Stormpath\Tests\BaseTest {
      */
     public function testDelete()
     {
-        $application = \Stormpath\Resource\Application::create(array('name' => 'Yet Another App'. md5(time())));
+        $application = \Stormpath\Resource\Application::create(array('name' => 'Yet Another App'. md5(time().microtime().uniqid())));
 
         $this->assertInstanceOf('Stormpath\Resource\Application', $application);
         $this->assertContains('Yet Another App', $application->name);

@@ -18,7 +18,7 @@ On your project root, install Composer
 Configure the **stormpath/sdk** dependency in your 'composer.json' file:
 
     "require": {
-        "stormpath/sdk": "1.0.*@beta"
+        "stormpath/sdk": "1.8.*@beta"
     }
 
 On your project root, install the the SDK with its dependencies:
@@ -103,6 +103,10 @@ If you have not already done so, register as a developer on
 
     $directory = \Stormpath\Resource\Directory::get($directoryHref);
     ```
+    > **Note:**
+    
+    > The `$applicationHref` and `$directoryHref` can be accessed from the Stormpath Administrator Console or retrieved from the code.
+    > When you iterate over the object during step 3, you can output the href for the individual objects (eg `print $app->href;`)
 
 5.  **Create an application** and auto create a directory as the account store.
 
@@ -545,7 +549,80 @@ CustomData while stating the custom data field as a parameter.
 ```php
   $customData->remove("favoriteColor");
   ```
+  
+  
+### ID Site
+ID Site allows you to easily add authentication to your application.  It is also very easy to use.  
+To use ID Site, You need to use the SDK to generate a url with a JWT.  This is very simple but you want to make sure your
+application does not generate that on the page with the login link but rather a transfer thru page that generates the link 
+then redirects the user to the ID Site URL. 
 
+
+
+#### ID Site Login
+As an example, you have a link on your page for Login which goes go login.php.  Your login.php file would include the following
+code which generates the JWT URL
+
+```php
+$application = \Stormpath\Resource\Application::get('{APPLICATION_ID}');	
+$loginLink = $application->createIdSiteUrl(['callbackUri'=>'{CALLBACK_URI}']);
+header('Location:'.$loginLink);  //or any other form of redirect to the $loginLink you want to use.
+```
+
+That is all you will need for generating the login link
+
+> NOTE:
+> In order for you to be directed back to the Callback URL, you need to make sure you are explicit in the Stormpath
+> Dashboard.  Include the full url on the [ID Site settings page](https://api.stormpath.com/ui2/index.html#/id-site)
+
+For the example above, you would replace `{APPLICATION_ID}` with the id for the applicaiton you want to allow a user
+to sign in to.  You then replace `{CALLBACK_URI}` with the url you want to handle the ID Site information.  
+
+#### Handle ID Site Callback
+For any request you make for ID Site, you need to specify a callback uri.  This is where the logic is stored for any
+information you want to receive from the JWT about the logged in user.  To do this and get the response back from the 
+Stormpath servers, you call the method handleIdSite on the application object while passing in the full Request URI
+ 
+```php
+$application = \Stormpath\Resource\Application::get('{APPLICATION_ID}');	
+$response = $application->handleIdSiteCallback($_SERVER['REQUEST_URI']);	
+```
+
+> NOTE:
+> A JWT Response Token can only be used once.  This is to prevent replay attacks.  It will also only be valid for a total
+> of 60 seconds.  After which time, You will need to restart the workflow you were in.
+
+#### Other ID Site Options
+There are a few other methods that you will need to concern yourself with when using ID Site.  Logging out a User, 
+Registering a User, and a User who has forgotten their password.  These methods will use the same information from 
+the login method but a few more items will need to be passed into the array.
+
+Logging Out a User
+```php
+$application = \Stormpath\Resource\Application::get('{APPLICATION_ID}');
+$logoutLink = $application->createIdSiteUrl(['logout'=>true, 'callbackUri'=>'{CALLBACK_URI}']);
+header('Location:'.$logoutLink);  //or any other form of redirect to the $loginLink you want to use.
+```
+
+Registering a User
+```php
+$application = \Stormpath\Resource\Application::get('{APPLICATION_ID}');
+$registerLink = $application->createIdSiteUrl(['path'=>'/#/register','callbackUri'=>'{CALLBACK_URI}']);
+header('Location:'.$registerLink);  //or any other form of redirect to the $loginLink you want to use.
+```
+
+Forgot Link
+```php
+$application = \Stormpath\Resource\Application::get('{APPLICATION_ID}');
+$forgotLink = $application->createIdSiteUrl(['path'=>'/#/forgot','callbackUri'=>'{CALLBACK_URI}']);
+header('Location:'.$forgotLink);  //or any other form of redirect to the $loginLink you want to use.
+```
+
+Again, with all these methods, You will want your application to link to an internal page where the JWT is created at 
+that time.  Without doing this, a user will only have 60 seconds to click on the link before the JWT expires.
+
+> NOTE:
+> A JWT will expire after 60 seconds of creation.
 
 ### Collections
 #### Search
@@ -812,6 +889,19 @@ registered on, can be kicked off with the
 $account = $application->sendPasswordResetEmail('super_unique_email@unknown123.kot');
 ```
 
+Alternatively, if you know the account store where the account matching the 
+specified email address resides, you can include it as part of the `$options` array
+in the call to <code>sendPasswordResetEmail</code>. This is useful as a performance 
+enhancement if the application might be mapped to many (dozens, hundreds or 
+thousands) of account stores, a common scenario in multi-tenant applications.
+
+```php
+$accountStore = $anAccountStoreMapping->getAccountStore();
+// this method returns the account
+$account = $application->sendPasswordResetEmail('super_unique_email@unknown123.kot', 
+    array('accountStore' => $accountStore);
+```
+
 If the workflow has been configured to verify through a non-Stormpath
 URL, you can verify the token sent in the query parameter
 <code>sptoken</code> with the <code>verifyPasswordResetToken</code>
@@ -889,6 +979,468 @@ Group membership can be created by:
   ```php
   $group->addAccount($account);
   ```
+
+### Integrating with Google
+
+Stormpath supports accessing accounts from a number of different 
+locations including Google. Google uses OAuth 2.0 protocol for 
+authentication / authorization and Stormpath can leverage their 
+authorization code (or access tokens) to return an `Account` for 
+a given code.
+
+The steps to enable this functionality into your application include:
+
++ Create a Google Directory
++ Create an `AccountStoreMapping` between a Google Directory and your `Application`
++ Accessing Accounts with Google Authorization Codes or Access Tokens
+
+Google Directories follow behavior similar to mirror directories, but 
+have a `Provider` resource that contains information regarding the Google 
+application that the directory is configured for.
+
+#### Google Provider Resource
+
+A GoogleProvider resource holds specific information needed for working with 
+a Google Directory. It is important to understand the format of the provider 
+resource when creating and updating a Google Directory.
+
+A provider resource can be obtained by accessing the directory’s provider as 
+follows:
+
+```PHP
+$provider = $client->dataStore->getResource("https://api.stormpath.com/v1/directories/1mBDmVgW8JEon4AkoSYjPv/provider",
+    \Stormpath\Stormpath::GOOGLE_PROVIDER);
+```
+
+or, by means of the directory `Resource`:
+
+```PHP
+$provider = $directory->getProvider();
+```
+
+Alternatively, it is possible to use the static client configuration to the get the `Provider`:
+
+```PHP
+// It is also possible to specify the URL ending with "/provider", 
+// or the partial path (which could be "directories/DIR_ID/provider", 
+// or "DIR_ID/provider" or just "DIR_ID"). 
+$directoryHref = "https://api.stormpath.com/v1/directories/1mBDmVgW8JEon4AkoSYjPv"; 
+$provider = GoogleProvider::get($directoryHref);
+```
+
+##### Resource Attributes
+
+* `clientId` : The App ID for your Google application
+* `clientSecret` : The App Secret for your Google application
+* `redirectUri` : The redirection Uri for your Google application
+* `providerId` : The provider ID is the Stormpath ID for the Directory’s account provider
+
+In addition to your application specific attributes, a Provider resource 
+will always contain 3 reserved read-only fields:
+
+* `href` : The fully qualified location of the custom data resource
+* `createdAt` : the UTC timestamp with millisecond precision of when the resource was created in Stormpath as an ISO 8601 formatted string
+* `modifiedAt` : the UTC timestamp with millisecond precision of when the resource was created in Stormpath as an ISO 8601 formatted string
+
+#### Creating a Google Directory
+
+Creating a Google Directory requires that you gather some information 
+beforehand from Google’s Developer Console regarding your application.
+
+* Client ID
+* Client Secret
+* Redirect URI
+
+Creating a Google Directory is very similar to creating a directory within 
+Stormpath. For a Google Directory to be configured correctly, you must 
+specify the correct Provider information.
+
+```PHP
+$provider = $client->dataStore->instantiate(\Stormpath\Stormpath::GOOGLE_PROVIDER);
+$provider->clientId = "857385-m8vk0fn2r7jmjo.apps.googleusercontent.com";
+$provider->clientSecret = "ehs7_-bA7OWQSQ4";
+$provider->redirectUri = "https://myapplication.com/authenticate";
+
+$directory = $client->dataStore->instantiate(\Stormpath\Stormpath::DIRECTORY);
+$directory->name = "my-google-directory";
+$directory->description = "A Google directory";
+$directory->provider = $provider;
+
+$tenant = $client->getCurrentTenant();
+$directory = $tenant->createDirectory($directory);
+```
+
+After the Google Directory has been created, it needs to be mapped with an 
+application as an account store. The Google Directory cannot be a default 
+account store or a default group store. Once the directory is mapped as an 
+account store for an application, you are ready to access Accounts with 
+Google Authorization Codes.
+
+#### Accessing Accounts with Google Authorization Codes or Access Tokens
+
+To access or create an account in an already created Google Directory, it is 
+required to gather a Google Authorization Code on behalf of the user. This 
+requires leveraging Google’s OAuth 2.0 protocol and the user’s consent for 
+your application’s permissions.
+
+Once the Authorization Code is gathered, you can get or create the `Account` by 
+means of the `Application` and specifying a `ProviderRequest`. The following example 
+shows how you use `GoogleProviderAccountRequest` to get an `Account` for a given authorization code:
+
+```PHP
+$applicationHref = "https://api.stormpath.com/v1/applications/24mp4us71ntza6lBwlu";
+$application = $client->getResource(applicationHref, \Stormpath\Stormpath::APPLICATION);
+$providerRequest = new GoogleProviderAccountRequest(array(
+    "code" => "4/a3p_fn0sMDQlyFVTYwfl5GAj0Obd.oiruVLbQZSwU3oEBd8DOtNApQzTCiwI"
+));
+
+$result = $application->getAccount($providerRequest);
+$account = $result->getAccount();
+```
+
+In order to know if the account was created or if it already existed in the 
+Stormpath’s Google Directory you can do: `result.isNewAccount();`. It will return 
+`true` if it is a newly created account; `false` otherwise.
+
+Once an `Account` is retrieved, Stormpath maps common fields for the Google User to 
+the `Account`. The access token and the refresh token for any additional calls in the 
+`GoogleProviderData` resource and can be retrieved by:
+
+```PHP
+$providerData = $account->getProviderData();
+```
+
+The returned GoogleProviderData includes:
+
+```PHP
+$providerData->accessToken; //-> y29.1.AADN_Xo2hxQflWwsgCSK-WjSw1mNfZiv4
+$providerData->createdAt; //-> 2014-04-01T17:00:09.154Z 
+$providerData->href; //-> https://api.stormpath.com/v1/accounts/ciYmtETytH0tbHRBas1D5/providerData 
+$providerData->modifiedAt; //-> 2014-04-01T17:00:09.189Z 
+$providerData->providerId; //-> google 
+$providerData->refreshToken; //-> 1/qQTS638g3ArE4U02FoiXL1yIh-OiPmhc
+```
+
+The `accessToken` can also be passed as a field for the `ProviderData` to access the 
+account once it is retrieved:
+
+```PHP
+$providerRequest = new GoogleProviderRequest(array(
+    "accessToken" =>"y29.1.AADN_Xo2hxQflWwsgCSK-WjSw1mNfZiv4"
+));
+$result = $application->getAccount(request);
+$account = $result->getAccount();
+```
+
+The refreshToken will only be present if your application asked for offline access. 
+Review Google’s documentation for more information regarding OAuth offline access.
+
+### Integrating with Facebook
+
+Stormpath supports accessing accounts from a number of different locations including 
+Facebook. Facebook uses OAuth 2.0 protocol for authentication / authorization and 
+Stormpath can leverage their or access tokens to return an Account for a given code.
+
+The steps to enable this functionality into your application include:
+
+* Create a Facebook Directory
+* Create an Account Store Mapping between a Facebook Directory and your Application
+* Accessing Accounts with Facebook User Access Tokens
+
+Facebook Directories follow behavior similar to mirror directories, but have a
+Provider resource that contains information regarding the Facebook application that
+the directory is configured for.
+
+#### FACEBOOK PROVIDER RESOURCE
+
+A FacebookProvider resource holds specific information needed for working with a 
+Facebook Directory. It is important to understand the format of the provider resource 
+when creating and updating a Facebook Directory.
+
+A provider resource can be obtained by accessing the directory’s provider as follows:
+
+Example Request
+
+```PHP
+$provider = $client->dataStore->getResource("https://api.stormpath.com/v1/directories/72N2MjJSIXuln56sNngcvr/provider",
+    \Stormpath\Stormpath::FACEBOOK_PROVIDER);
+```
+
+or, by means of the directory Resource:
+
+```PHP
+$provider = $directory->getProvider();
+```
+
+Alternatively, it is possible to use the static client configuration to the get the `Provider`:
+
+```PHP
+// It is also possible to specify the URL ending with "/provider", 
+// or the partial path (which could be "directories/DIR_ID/provider", 
+// or "DIR_ID/provider" or just "DIR_ID"). 
+$directoryHref = "https://api.stormpath.com/v1/directories/1mBDmVgW8JEon4AkoSYjPv"; 
+$provider = FacebookProvider::get($directoryHref);
+```
+
+##### Resource Attributes
+
+* `clientId` : The App ID for your Facebook application
+* `clientSecret` : The App Secret for your Facebook application
+* `providerId` : The provider ID is the Stormpath ID for the Directory’s account provider
+
+In addition to your application specific attributes, a Provider resource will always contain 3 reserved read-only fields:
+
+* `href` : The fully qualified location of the custom data resource
+* `createdAt` : the UTC timestamp with millisecond precision of when the resource was created in Stormpath as an ISO 8601 formatted string
+* `modifiedAt` : the UTC timestamp with millisecond precision of when the resource was created in Stormpath as an ISO 8601 formatted string
+
+#### CREATING A FACEBOOK DIRECTORY
+
+Creating a Facebook Directory requires that you gather some information beforehand 
+from Facebook’s Developer Console regarding your application.
+
+* Client ID
+* Client Secret
+
+Creating a Facebook Directory is very similar to creating a directory within Stormpath.
+ For a Facebook Directory to be configured correctly, you must specify the correct 
+ Provider information.
+
+Example Request
+
+```
+$provider = $client->dataStore->instantiate(\Stormpath\Stormpath::FACEBOOK_PROVIDER);
+$provider->clientId = "1011854538839621";
+$provider->clientSecret = "82c16954b0d88216127d66ac44bbc3a8";
+$provider->redirectUri = "https://apps.facebook.com/sampleapp";
+
+$directory = $client->dataStore->instantiate(\Stormpath\Stormpath::DIRECTORY);
+$directory->name = "my-fb-directory";
+$directory->description = "A Facebook directory";
+$directory->provider = $provider;
+
+$tenant = $client->getCurrentTenant();
+$directory = $tenant->createDirectory($directory);
+```
+
+After the Facebook Directory has been created, it needs to be mapped with an 
+application as an account store. The Facebook Directory cannot be a default account 
+store or a default group store. Once the directory is mapped to an account store for 
+an application, you are ready to access Accounts with Facebook User Access Tokens.
+
+#### ACCESSING ACCOUNTS WITH FACEBOOK USER ACCESS TOKENS
+To access or create an account in an already created Facebook Directory, it is 
+required to gather the User Access Token on behalf of the user. This usually requires 
+leveraging Facebook’s javascript library and the user’s consent for your application’s 
+permissions.
+
+It is required that your Facebook application request for the email permission from 
+Facebook. If the access token does not grant email permissions, you will not be able 
+to get an Account with an access token.
+
+Once the Authorization Code is gathered, you can get or create the `Account` by means of 
+the `Application` and specifying its `ProviderData`. The following example shows how you 
+use `FacebookProviderAccountRequest` to get an `Account` for a given authorization code:
+
+Example Request
+
+```PHP
+$applicationHref = "https://api.stormpath.com/v1/applications/2k1aegw9UbLX4ZfMH4kCkR";
+$application = \Stormpath\Resource\Application::get($applicationHref);
+
+$providerAccountRequest = new \Stormpath\Provider\FacebookProviderAccountRequest(array(
+    "accessToken" => "CABTmZxAZBxBADbr1l7ZCwHpjivBt9T0GZBqjQdTmgyO0OkUq37HYaBi4F23f49f5"
+));
+
+$result = $application->getAccount($providerRequest);
+$account = $result->getAccount();
+```
+
+In order to know if the account was created or if it already existed in the 
+Stormpath’s Facebook Directory you can do: `$result->isNewAccount();`. It will return 
+`true` if it is a newly created account; `false` otherwise.
+
+Once an `Account` is retrieved, Stormpath maps common fields for the Facebook User to 
+the `Account`. The access token for any additional calls in the `FacebookProviderData` 
+resource and can be retrieved by:
+
+```PHP
+$providerData = $account->getProviderData();
+```
+The returned `FacebookProviderData` will include:
+
+```PHP
+$providerData->accessToken; //-> CABTmZxAZBxBADbr1l7ZCwHpjivBt9T0GZBqjQdTmgyO0OkUq37HYaBi4F23f49f5
+$providerData->createdAt; //-> 2014-04-01T17:00:09.154Z
+$providerData->href; //-> https://api.stormpath.com/v1/accounts/ciYmtETytH0tbHRBas1D5/providerData
+$providerData->modifiedAt; //-> 2014-04-01T17:00:09.189Z
+$providerData->providerId; //-> facebook
+```
+
+## Using Stormpath for API Authentication
+
+### Create an Account for your developers
+
+First, you will need user accounts in Stormpath to represent the people that are developing against 
+your API. Accounts can not only represent Developers, but also can be used to represent services, 
+daemons, processes, or any “entity” that needs to login to a Stormpath-secured API.
+
+```php
+$account = \Stormpath\Resource\Account::instantiate(
+  array('givenName' => 'Joe',
+        'surname' => 'Stormtrooper',
+        'email' => 'tk421@stormpath.com',
+        'password' => 'Changeme1'));
+
+$application->createAccount($account);
+```
+
+### Create and Manage API Keys for an Account
+
+After you create an account for a developer, you will need to generate an API Key (or multiple) 
+to be used when accessing your API. Each account will have an `apiKeys` property that contains a 
+collection of their API Keys. There will also be a list of API keys on a account’s profile in the 
+Stormpath Admin Console. You will be able to both create and manage keys in both.
+
+#### CREATING API KEYS FOR AN ACCOUNT 
+
+```php
+$apiKey = $account->createApiKey();
+
+$apiKeyId = $apikey->id;
+$apiKeySecret = $apikey->secret;
+```
+
+The `ApiKey` returned will have the following properties:
+* id	    The unique identifier for the API Key
+* secret	The secret for the API key.
+* status	A property that represent the status of the key. Keys with a disabled status will not be able to authenticate.
+* account	A link to the ApiKey’s account.
+* tenant	A link to the ApiKey’s tenant.
+
+#### MANAGE API KEYS FOR AN ACCOUNT
+
+##### Deleting an API Key
+
+```php
+$apiKeyId = 'FURThLWDE4MElDTFVUMDNDTzpQSHozZ';
+$apiKey = $application->getApiKey($apiKeyId);
+$apiKey->delete();
+```
+
+##### Disable an API key
+
+```php
+$apiKeyId = 'FURThLWDE4MElDTFVUMDNDTzpQSHozZ' 
+$apiKey = $application->getApiKey('FURThLWDE4MElDTFVUMDNDTzpQSHozZ');
+$apiKey->status = 'DISABLED';
+$apiKey->save()
+```
+
+### Using the Stormpath SDK to Authenticate and Generate Tokens for your API Keys
+
+The class `ApiRequestAuthenticator` can be used to perform both Basic Authentication 
+and OAuth Authentication.
+ 
+### Basic Authentication
+
+```
+GET /troopers/tk421/equipment 
+Accept: application/json
+Authorization: Basic MzRVU1BWVUFURThLWDE4MElDTFVUMDNDTzpQSHozZitnMzNiNFpHc1R3dEtOQ2h0NzhBejNpSjdwWTIwREo5N0R2L1g4
+Host: api.trooperapp.com
+```
+
+The `Authorization` header contains a base64 encoding of the API Key and Secret.
+
+#### Using `ApiRequestAuthenticator`
+
+```php
+$application = \Stormpath\Resource\Application::get("https://api.stormpath.com/v1/applications/24mp4us71ntza6lBwlu");
+
+$request = \Stormpath\Authc\Api\Request::createFromGlobals();
+$result = new ApiRequestAuthenticator($application)->authenticate($request);
+
+$account = $result->account;
+$apiKey = $result->apiKey;
+```
+
+##### Using `BasicRequestAuthenticator`
+
+```php
+$application = \Stormpath\Resource\Application::get("https://api.stormpath.com/v1/applications/24mp4us71ntza6lBwlu");
+
+$request = \Stormpath\Authc\Api\Request::createFromGlobals();
+$result = new BasicRequestAuthenticator($application)->authenticate($request);
+
+$account = $result->account;
+$apiKey = $result->apiKey;
+```
+
+### OAuth Authentication
+
+#### GENERATING A TOKEN
+
+```
+POST /oauth/token
+Accept: application/json
+Authorization: Basic MzRVU1BWVUFURThLWDE4MElDTFVUMDNDTzpQSHozZitnMzNiNFpHc1
+Content-Type: application/x-www-form-urlencoded
+Host: api.trooperapp.com
+
+  grant_type=client_credentials
+```
+
+The `Authorization` header contains a base64 encoding of the API Key and Secret.
+
+```php
+$application = \Stormpath\Resource\Application::get("https://api.stormpath.com/v1/applications/24mp4us71ntza6lBwlu");
+
+$request = \Stormpath\Authc\Api\Request::createFromGlobals();
+$result = new ApiRequestAuthenticator($application)->authenticate($request);
+
+$tokenResponse = $result->tokenResponse;
+$token = $tokenResponse->accessToken;
+$json = $tokenResponse->toJson();
+```
+
+Alternatively, it's possible to use `OAuthRequestAuthenticator` or the more specific 
+authenticator `OAuthClientCredentialsRequestAuthenticator` to generate access tokens.
+
+The response including the access token looks like this: 
+
+```
+HTTP 200 OK
+Content-Type: application/json
+
+{
+   "access_token":"7FRhtCNRapj9zs.YI8MqPiS8hzx3wJH4.qT29JUOpU64T",
+   "token_type":"bearer",
+   "expires_in":3600
+}
+```
+
+#### AUTHENTICATION USING TOKEN
+
+```
+GET /troopers/tk421/equipment 
+Accept: application/json
+Authorization: Bearer 7FRhtCNRapj9zs.YI8MqPiS8hzx3wJH4.qT29JUOpU64T
+Host: api.trooperapp.com
+```
+
+```php
+$application = \Stormpath\Resource\Application::get("https://api.stormpath.com/v1/applications/24mp4us71ntza6lBwlu");
+
+$request = \Stormpath\Authc\Api\Request::createFromGlobals();
+$result = new OAuthRequestAuthenticator($application)->authenticate($request);
+
+$account = $result->account;
+$apiKey = $result->apiKey;
+```
+
+You can also use the more specific `OAuthBearerRequestAuthenticator` to authenticate 
+token access requests.
 
 ## Run the tests
 

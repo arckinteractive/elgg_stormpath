@@ -39,6 +39,8 @@ class Stormpath
     const ACCOUNT_STORE                 = 'AccountStore';
     const ACCOUNT_STORE_MAPPING         = 'AccountStoreMapping';
     const ACCOUNT_STORE_MAPPING_LIST    = 'AccountStoreMappingList';
+    const API_KEY                       = 'ApiKey';
+    const API_KEY_LIST                  = 'ApiKeyList';
     const APPLICATION                   = 'Application';
     const APPLICATION_LIST              = 'ApplicationList';
     const AUTHENTICATION_RESULT         = 'AuthenticationResult';
@@ -47,11 +49,19 @@ class Stormpath
     const DIRECTORY                     = 'Directory';
     const DIRECTORY_LIST                = 'DirectoryList';
     const EMAIL_VERIFICATION_TOKEN      = 'EmailVerificationToken';
+    const FACEBOOK_PROVIDER             = 'FacebookProvider';
+    const FACEBOOK_PROVIDER_DATA        = "FacebookProviderData";
+    const GOOGLE_PROVIDER               = 'GoogleProvider';
+    const GOOGLE_PROVIDER_DATA          = "GoogleProviderData";
     const GROUP                         = 'Group';
     const GROUP_LIST                    = 'GroupList';
     const GROUP_MEMBERSHIP              = 'GroupMembership';
     const GROUP_MEMBERSHIP_LIST         = 'GroupMembershipList';
     const PASSWORD_RESET_TOKEN          = 'PasswordResetToken';
+    const PROVIDER                      = 'Provider';
+    const PROVIDER_ACCOUNT_ACCESS       = 'ProviderAccountAccess';
+    const PROVIDER_ACCOUNT_RESULT       = 'ProviderAccountResult';
+    const PROVIDER_DATA                 = 'ProviderData';
     const TENANT                        = 'Tenant';
 
     const ENABLED                       = 'ENABLED';

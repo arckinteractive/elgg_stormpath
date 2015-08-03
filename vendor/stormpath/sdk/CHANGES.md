@@ -1,6 +1,54 @@
 stormpath-sdk-php Changelog
 ===========================
 
+
+Version 1.8.0.beta
+------------------
+
+Released on July 30, 2015
+
+- Added integration for Coveralls.io
+- Implemented API Key generation for accounts
+- Implemented API Key authorization
+
+
+Version 1.7.0.beta
+------------------
+
+Released on July 29, 2015
+
+- Upgraded to PHP-JWT to 2.2.*
+- Changed to guzzle/guzzle from guzzle/html
+
+
+Version 1.6.0.beta
+------------------
+
+Released on July 14, 2015
+
+- Fixed a bug when adding custom data to an existing property (like adding an entry to an existing array).
+- Added minor documentation changes.
+
+
+Version 1.5.0.beta
+------------------
+
+Released on June 12, 2015
+
+- Implemented social integration with Google and Facebook.
+- Fixed a bug when saving custom data after retrieving it from a resource.
+
+
+Version 1.4.0.beta
+------------------
+
+Released on June 3, 2015
+
+- Added the capability to support the specification of an account store for password reset.
+- Added tests for resource creation with custom data.
+- Changed the way that the user agent is resolved to gather more information.
+
+
 Version 1.3.0.beta
 ------------------
 

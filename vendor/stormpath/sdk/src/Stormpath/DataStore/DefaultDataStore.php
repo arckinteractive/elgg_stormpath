@@ -20,14 +20,15 @@ namespace Stormpath\DataStore;
 
 use Stormpath\ApiKey;
 use Stormpath\Cache\Cacheable;
-use Stormpath\Cache\CacheManager;
 use Stormpath\Http\DefaultRequest;
 use Stormpath\Http\Request;
 use Stormpath\Http\RequestExecutor;
+use Stormpath\Resource\CustomData;
 use Stormpath\Resource\Error;
 use Stormpath\Resource\Resource;
 use Stormpath\Resource\ResourceError;
-use Stormpath\Util\Version;
+use Stormpath\Stormpath;
+use Stormpath\Util\UserAgentBuilder;
 
 class DefaultDataStore extends Cacheable implements InternalDataStore
 {
@@ -112,7 +113,6 @@ class DefaultDataStore extends Cacheable implements InternalDataStore
 
         $queryString = $this->getQueryString($options);
 
-
         if (!$data = $this->isResourceCached($href, $options)) {
             $data = $this->executeRequest(Request::METHOD_GET, $href, '', $queryString);
         }
@@ -120,6 +120,9 @@ class DefaultDataStore extends Cacheable implements InternalDataStore
         if($this->resourceIsCacheable($data)) {
             $this->addDataToCache($data, $queryString);
         }
+
+        $resolver = DefaultClassNameResolver::getInstance();
+        $className = $resolver->resolve($className, $data, $options);
 
         return $this->resourceFactory->instantiate($className, array($data, $queryString));
     }
@@ -222,6 +225,11 @@ class DefaultDataStore extends Cacheable implements InternalDataStore
 
         $result = $response->getBody() ? json_decode($response->getBody()) : '';
 
+        if (isset($result) && $result instanceof \stdClass)
+        {
+        	$result->httpStatus = $response->getHttpStatus();
+        }
+        
         if ($response->isError())
         {
             $errorResult = $result;
@@ -254,6 +262,22 @@ class DefaultDataStore extends Cacheable implements InternalDataStore
                                           $href,
                                           json_encode($this->toStdClass($resource)),
                                           $query);
+        
+        //provider's account creation status (whether it is new or not) is returned in the HTTP response
+        //status. The resource factory does not provide a way to pass such information when instantiating a resource. Thus,
+        //after the resource has been instantiated we are going to manipulate it before returning it in order to set the
+        //"is new" status
+        if (isset($response) && isset($response->httpStatus))
+        {
+        	$httpStatus = $response->httpStatus;
+        	if ($returnType == Stormpath::PROVIDER_ACCOUNT_RESULT && ($httpStatus == 200 || $httpStatus == 201))
+        	{
+        		$response->newAccount = $httpStatus == 201;
+        	}
+        	unset($response->httpStatus);
+        }
+        
+        
         $this->removeResourceFromCache($resource);
 
         if($this->resourceIsCacheable($response)) {
@@ -267,7 +291,13 @@ class DefaultDataStore extends Cacheable implements InternalDataStore
     {
         $headers = $request->getHeaders();
         $headers['Accept'] = 'application/json';
-        $headers['User-Agent'] = 'Stormpath-PhpSDK/' .Version::SDK_VERSION;
+
+        $userAgentBuilder = new UserAgentBuilder;
+        $headers['User-Agent'] = $userAgentBuilder->setOsName(php_uname('s'))
+                                                  ->setOsVersion(php_uname('r'))
+                                                  ->setPhpVersion(phpversion())
+                                                  ->build();
+
 
         if ($request->getBody())
         {
@@ -283,7 +313,8 @@ class DefaultDataStore extends Cacheable implements InternalDataStore
         {
             $customData = true;
         }
-        $propertyNames = $resource->getPropertyNames();
+
+        $propertyNames = $resource->getPropertyNames(true);
 
         $properties = new \stdClass();
 
@@ -292,12 +323,14 @@ class DefaultDataStore extends Cacheable implements InternalDataStore
 
             $property = $resource->getProperty($name);
 
+            $nameIsCustomData = $name == CustomData::CUSTOMDATA_PROP_NAME;
+
             if ($property instanceof \Stormpath\Resource\CustomData)
             {
                 $property = $this->toStdClass($property, true);
             }
 
-            else if ($property instanceof \stdClass && $customData === false)
+            else if ($property instanceof \stdClass && $customData === false && !$nameIsCustomData)
             {
                 $property = $this->toSimpleReference($name, $property);
             }

@@ -6,9 +6,12 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
+    'System' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
     'Stormpath\\' => array($vendorDir . '/stormpath/sdk/src'),
-    'Guzzle\\Stream' => array($vendorDir . '/guzzle/stream'),
-    'Guzzle\\Parser' => array($vendorDir . '/guzzle/parser'),
-    'Guzzle\\Http' => array($vendorDir . '/guzzle/http'),
-    'Guzzle\\Common' => array($vendorDir . '/guzzle/common'),
+    'Net' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
+    'Math' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
+    'Guzzle\\Tests' => array($vendorDir . '/guzzle/guzzle/tests'),
+    'Guzzle' => array($vendorDir . '/guzzle/guzzle/src'),
+    'File' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
+    'Crypt' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
 );

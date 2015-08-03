@@ -1,5 +1,5 @@
  {
    "require": {
-     "stormpath/sdk": "1.3.*@beta"
+     "stormpath/sdk": "1.8.*@beta"
    }
  }
