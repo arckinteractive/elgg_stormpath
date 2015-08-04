@@ -246,7 +246,7 @@ function pam_handler($credentials) {
 	// if we don't have a user we need to create one
 	if (!$user) {
 		$user = new \ElggUser();
-		$user->username = $account->username;
+		$user->username = preg_replace("/[^a-zA-Z0-9]/", "", $account->username);
 		$user->email = $account->email;
 		$user->name = $account->fullName;
 		$user->access_id = ACCESS_PUBLIC;
