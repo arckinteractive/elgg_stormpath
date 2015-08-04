@@ -128,6 +128,11 @@ function get_application() {
 	}
 
 	$name = elgg_get_plugin_setting('app_name', PLUGIN_ID);
+	
+	if (!$name) {
+		return false;
+	}
+	
 	$apps = $client->tenant->applications;
 	$apps->search = array('name' => $name);
 	$application = $apps->getIterator()->current();
