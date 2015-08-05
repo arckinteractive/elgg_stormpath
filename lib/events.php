@@ -35,17 +35,18 @@ function event_user_login($event, $type, $user) {
 	// may be in stormpath by manual addition, or from another application
 	// with shared login
 	$application = get_application();
-	$accts = $application->getAccounts(array('email' => $user->email));
-	foreach ($accts as $a) {
-		$user->__stormpath_user = $a->href;
-		return true;
-	}
+	if ($application) {
+		$accts = $application->getAccounts(array('email' => $user->email));
+		foreach ($accts as $a) {
+			$user->__stormpath_user = $a->href;
+			return true;
+		}
 	
-	$password = get_input('password');
-	if ($password) {
-		add_to_stormpath($user, $password);
+		$password = get_input('password');
+		if ($password) {
+			add_to_stormpath($user, $password);
+		}
 	}
-	
 	return true;
 }
 

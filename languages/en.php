@@ -11,7 +11,8 @@ $english = array(
 	'stormpath:settings:email_validate:help' => "If setting this to 'yes' make sure to configure the Stormpath Directory to use the email validation workflow.",
 	'stormpath:resetpassword' => "Password Reset",
 	'email:confirm:success' => "You have confirmed your email address!  You may now log in.",
-		
+	'stormpath:sso:error' => "There was an issue logging in, please try again",
+	'stormpath:logout:success' => "You have been logged out",
 );
 
 add_translation("en", $english);

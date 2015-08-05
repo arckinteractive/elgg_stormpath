@@ -298,6 +298,18 @@ function pagehandler($page) {
 			));
 			return true;
 			break;
+		case 'login':
+			echo elgg_view('resources/stormpath/login');
+			return true;
+			break;
+		case 'logout':
+			echo elgg_view('resources/stormpath/logout');
+			return true;
+			break;
+		case 'idsite':
+			echo elgg_view('resources/stormpath/idsite');
+			return true;
+			break;
 	}
 	
 	return false;
