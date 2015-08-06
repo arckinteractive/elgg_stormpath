@@ -6,7 +6,7 @@ Existing users will have accounts added to Stormpath the next time they sign int
 New users will have accounts added to Stormpath on registration.
 
 Users from other applications that populate the associated Stormpath Directory will be able to log
-in using their existing Stormpath credentials, and Elgg account will be created for them.
+in using their existing Stormpath credentials, and an Elgg account will be created for them.
 
 This plugin handles endpoints for validating email verification as well as forgot password links.
 
