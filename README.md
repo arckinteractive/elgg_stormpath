@@ -1,6 +1,6 @@
 #Elgg Stormpath
 
-This plugin allows Elgg users to be synchonized with a Stormpath directory for shared credentials with other applications as single-sign-on.
+This plugin allows Elgg users to be synchonized with a [Stormpath](https://stormpath.com) directory for shared credentials with other applications as single-sign-on.
 Existing users will have accounts added to Stormpath the next time they sign into Elgg.
 
 New users will have accounts added to Stormpath on registration.
