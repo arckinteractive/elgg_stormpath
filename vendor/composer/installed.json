@@ -304,17 +304,17 @@
     },
     {
         "name": "stormpath/sdk",
-        "version": "1.8.0.beta",
-        "version_normalized": "1.8.0.0-beta",
+        "version": "1.8.1.beta",
+        "version_normalized": "1.8.1.0-beta",
         "source": {
             "type": "git",
             "url": "https://github.com/stormpath/stormpath-sdk-php.git",
-            "reference": "04232c1ec604a5e602d39e0ed8df325eaac35082"
+            "reference": "7408cd922932cb81e98f330c376b0ebc908d1b2e"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/stormpath/stormpath-sdk-php/zipball/04232c1ec604a5e602d39e0ed8df325eaac35082",
-            "reference": "04232c1ec604a5e602d39e0ed8df325eaac35082",
+            "url": "https://api.github.com/repos/stormpath/stormpath-sdk-php/zipball/7408cd922932cb81e98f330c376b0ebc908d1b2e",
+            "reference": "7408cd922932cb81e98f330c376b0ebc908d1b2e",
             "shasum": ""
         },
         "require": {
@@ -326,7 +326,7 @@
         "require-dev": {
             "phpunit/phpunit": "3.7.*"
         },
-        "time": "2015-07-31 00:15:28",
+        "time": "2015-08-06 17:56:51",
         "type": "library",
         "installation-source": "dist",
         "autoload": {

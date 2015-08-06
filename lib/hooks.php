@@ -20,7 +20,7 @@ function disable_new_user($hook, $type, $value, $params) {
 	}
 
 	// no clue what's going on, so don't react.
-	if (!$user instanceof ElggUser) {
+	if (!$user instanceof \ElggUser) {
 		return;
 	}
 
@@ -72,7 +72,7 @@ function allow_new_user_can_edit($hook, $type, $return, $params) {
 	// we want the entity to check, which is a user.
 	$user = elgg_extract('entity', $params);
 
-	if (!($user instanceof ElggUser)) {
+	if (!($user instanceof \ElggUser)) {
 		return;
 	}
 
