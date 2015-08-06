@@ -13,6 +13,8 @@ $english = array(
 	'email:confirm:success' => "You have confirmed your email address!  You may now log in.",
 	'stormpath:sso:error' => "There was an issue logging in, please try again",
 	'stormpath:logout:success' => "You have been logged out",
+	'stormpath:login:sso' => "Login with Stormpath",
+	'stormpath:login:local' => "Local Login"
 );
 
 add_translation("en", $english);

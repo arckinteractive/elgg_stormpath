@@ -2,13 +2,18 @@
 
 This plugin allows Elgg users to be synchonized with a Stormpath directory for shared credentials with other applications as single-sign-on.
 Existing users will have accounts added to Stormpath the next time they sign into Elgg.
+
 New users will have accounts added to Stormpath on registration.
+
 Users from other applications that populate the associated Stormpath Directory will be able to log
 in using their existing Stormpath credentials, and Elgg account will be created for them.
+
+This plugin handles endpoints for validating email verification as well as forgot password links.
 
 ##Installation
 
 Unzip this plugin to mod/elgg_stormpath
+
 Enable the plugin through the admin interface
 
 ##Configuration
@@ -18,6 +23,7 @@ Download the apiKeys.properties file from Stormpath and upload it in the plugin 
 Once the apiKeys have been uploaded, select your application from the dropdown and save the settings again.
 
 ##Stormpath Account Store
+
 Enable password reset and email verification on the directory if required.
 
 Custom url endpoints have been defined if necessary, use the following:
@@ -26,11 +32,12 @@ Password reset email base url ```[url]/stormpath/passwordreset```
 
 Email verification base url ```[url]/stormpath/emailverification```
 
-###Password Issues
+##Password Issues
 If you are setting up Stormpath on an installation with existing users they may have
 existing passwords that do not meet the requirements of Stormpath.  These restrictions
 can be lifted in the Stormpath Directory.  By removing all password restrictions Stormpath
 will be able to receive existing user passwords.
+
 If you are setting this up on a new site with no existing users it would be preferable to change
 the Elgg password restrictions to match Stormpath.
 
