@@ -17,6 +17,9 @@ $english = array(
 	'stormpath:login:sso' => "Login with Stormpath",
 	'stormpath:login:local' => "Local Login",
 	
+	'stormpath:settings:idsite' => "ID Site Login",
+	'stormpath:settings:idsite:help' => "Force logins through the SSO ID Site portal?",
+	
 	'admin:stormpath:import' => "Import",
 	'stormpath:import:required:vroom' => "The vroom plugin is required for this import",
 	'stormpath:import:title' => "There are %s users who are not represented in Stormpath",

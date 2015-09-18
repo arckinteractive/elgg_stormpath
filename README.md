@@ -53,7 +53,4 @@ Login - ```[url]/stormpath/login```
 
 Logout = ```[url]/stormpath/logout```
 
-The workflows and presentation of SSO tend to vary from project to project, therefore
-no UI has been implemented for this in this plugin.  Developers can add these SSO links
-to their themes or other override plugins.
 

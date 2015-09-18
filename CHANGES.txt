@@ -6,6 +6,7 @@ x.x (mm/dd/yyyy):
  - add action to bulk import all users from existing elgg into stormpath
  - add local users to stormpath on local password change
  - fix incorrect event function name
+ - add SSO login view
 
 1.0 (08/06/2015):
  - Initial Release

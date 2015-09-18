@@ -29,6 +29,22 @@ echo elgg_view('input/dropdown', array(
 ));
 echo '</div>';
 
+echo '<div>';
+echo '<label>' . elgg_echo('stormpath:settings:idsite') . '</label><br>';
+echo elgg_view('input/dropdown', array(
+	'name' => 'params[idsite]',
+	'value' => $vars['entity']->idsite,
+	'options_values' => array(
+		0 => elgg_echo('option:no'),
+		1 => elgg_echo('option:yes')
+	)
+));
+echo elgg_view('output/longtext', array(
+	'value' => elgg_echo('stormpath:settings:idsite:help'),
+	'class' => 'elgg-subtext'
+));
+echo '</div>';
+
 
 echo '<div>';
 echo '<label>' . elgg_echo('stormpath:settings:email_validate') . '</label><br>';
