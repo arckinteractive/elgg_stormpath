@@ -84,7 +84,6 @@ function allow_new_user_can_edit($hook, $type, $return, $params) {
 	return;
 }
 
-
 function users_settings_save($hook, $type, $return, $params) {
 	elgg_set_user_language();
 	//elgg_set_user_password();
@@ -149,28 +148,32 @@ function set_user_password($hook = 'usersettings:save', $type = 'user', $return 
 						$account = $client->dataStore->getResource($user->__stormpath_user, \Stormpath\Stormpath::ACCOUNT);
 						$account->password = $password;
 						$account->save();
-
-						// change it locally
-						$user->salt = _elgg_generate_password_salt();
-						$user->password = generate_user_password($user, $password);
-
-						if (is_elgg18()) {
-							$user->code = '';
-							if ($user->guid == elgg_get_logged_in_user_guid() && !empty($_COOKIE['elggperm'])) {
-								// regenerate remember me code so no other user could
-								// use it to authenticate later
-								$code = _elgg_generate_remember_me_token();
-								$_SESSION['code'] = $code;
-								$user->code = md5($code);
-								setcookie("elggperm", $code, (time() + (86400 * 30)), "/");
-							}
-						} else {
-							_elgg_services()->persistentLogin->handlePasswordChange($user, elgg_get_logged_in_user_entity());
-						}
 					} catch (\Exception $exc) {
 						register_error($exc->getMessage());
 						return false;
 					}
+				} else {
+					if ($password) {
+						add_to_stormpath($user, $password);
+					}
+				}
+
+				// change it locally
+				$user->salt = _elgg_generate_password_salt();
+				$user->password = generate_user_password($user, $password);
+
+				if (is_elgg18()) {
+					$user->code = '';
+					if ($user->guid == elgg_get_logged_in_user_guid() && !empty($_COOKIE['elggperm'])) {
+						// regenerate remember me code so no other user could
+						// use it to authenticate later
+						$code = _elgg_generate_remember_me_token();
+						$_SESSION['code'] = $code;
+						$user->code = md5($code);
+						setcookie("elggperm", $code, (time() + (86400 * 30)), "/");
+					}
+				} else {
+					_elgg_services()->persistentLogin->handlePasswordChange($user, elgg_get_logged_in_user_entity());
 				}
 
 				if ($user->save()) {

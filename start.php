@@ -23,25 +23,25 @@ function init() {
 
 		$importance = elgg_get_plugin_setting('importance', PLUGIN_ID);
 		register_pam_handler(__NAMESPACE__ . '\\pam_handler', $importance);
-		
+
 		elgg_register_page_handler('stormpath', __NAMESPACE__ . '\\pagehandler');
 
 		// add new users to stormpath
 		elgg_register_event_handler('create', 'user', __NAMESPACE__ . '\\event_user_create', 1000);
 
 		// make admin users always validated
-		elgg_register_event_handler('make_admin', 'user', 'uservalidationbyemail_validate_new_admin_user');
+		elgg_register_event_handler('make_admin', 'user', __NAMESPACE__ . '\\validate_new_admin_user');
 
 		// mark users as unvalidated and disable when they register
 		elgg_register_plugin_hook_handler('register', 'user', __NAMESPACE__ . '\\disable_new_user');
 
 		// canEdit override to allow not logged in code to disable a user
 		elgg_register_plugin_hook_handler('permissions_check', 'user', __NAMESPACE__ . '\\allow_new_user_can_edit');
-		
+
 		elgg_register_action('user/requestnewpassword', __DIR__ . '/actions/stormpath/requestnewpassword.php', 'public');
 		elgg_register_action('user/passwordreset', __DIR__ . '/actions/stormpath/passwordreset.php', 'public');
-		
-		
+
+
 		// differentiation for 1.8/newer compatibility
 		if (is_elgg18()) {
 			elgg_register_event_handler('login', 'user', __NAMESPACE__ . '\\event_user_login', 1000);
@@ -51,6 +51,10 @@ function init() {
 			elgg_register_event_handler('login:after', 'user', __NAMESPACE__ . '\\event_user_login', 1000);
 			elgg_unregister_plugin_hook_handler('usersettings:save', 'user', '_elgg_set_user_password');
 			elgg_register_plugin_hook_handler('usersettings:save', 'user', __NAMESPACE__ . '\\set_user_password');
+		}
+
+		if (elgg_is_active_plugin('vroom')) {
+			elgg_register_action('stormpath/import', __DIR__ . '/actions/stormpath/import.php', 'admin');
 		}
 	}
 }
@@ -76,7 +80,7 @@ function get_api_file() {
 	if ($file) {
 		return $file;
 	}
-	
+
 	$dir = elgg_get_config('dataroot') . 'stormpath';
 
 	$file = $dir . '/apiKey.properties';
@@ -128,11 +132,11 @@ function get_application() {
 	}
 
 	$name = elgg_get_plugin_setting('app_name', PLUGIN_ID);
-	
+
 	if (!$name) {
 		return false;
 	}
-	
+
 	$apps = $client->tenant->applications;
 	$apps->search = array('name' => $name);
 	$application = $apps->getIterator()->current();
@@ -192,11 +196,11 @@ function add_to_stormpath(\ElggUser $user, $password) {
  */
 function is_elgg18() {
 	static $is_elgg18;
-	
+
 	if ($is_elgg18 !== null) {
 		return $is_elgg18;
 	}
-	
+
 	if (is_callable('elgg_get_version')) {
 		return false; // this is newer than 1.8
 	}
@@ -282,8 +286,6 @@ function pam_handler($credentials) {
 	return false;
 }
 
-
-
 function pagehandler($page) {
 	switch ($page[0]) {
 		case 'passwordreset':
@@ -311,6 +313,76 @@ function pagehandler($page) {
 			return true;
 			break;
 	}
-	
+
 	return false;
+}
+
+function import_to_stormpath() {
+	$dbprefix = elgg_get_config('dbprefix');
+	$subject = elgg_get_plugin_setting('import_subject', PLUGIN_ID);
+	$message = elgg_get_plugin_setting('import_message', PLUGIN_ID);
+	$site = elgg_get_site_entity();
+	$site_url = elgg_get_site_url();
+	
+	if (!$subject || !$message) { error_log('no subject/message');
+		return true;
+	}
+
+	if (is_elgg18()) {
+		$name_id = add_metastring('__stormpath_user');
+		$value_id = add_metastring(1);
+	} else {
+		$name_id = elgg_get_metastring_id('__stormpath_user');
+		$value_id = elgg_get_metastring_id(1);
+	}
+
+	$options = array(
+		'type' => 'user',
+		'joins' => array(
+			"LEFT JOIN {$dbprefix}metadata md ON md.entity_guid = e.guid AND md.name_id = {$name_id}"
+		),
+		'wheres' => array(
+			'md.name_id IS NULL'
+		),
+		'limit' => false
+	);
+
+	$batch = new \ElggBatch('elgg_get_entities', $options);
+	$batch->setIncrementOffset(false);
+
+	foreach ($batch as $user) {
+		// search stormpath for a matching account
+		$application = get_application();
+		$accts = $application->getAccounts(array('email' => $user->email));
+		foreach ($accts as $a) {
+			$user->__stormpath_user = $a->href;
+			error_log('set user ' . $user->username . ': ' . $a->href);
+			continue;
+		}
+
+		// change it locally
+		$password = generate_random_cleartext_password();
+		$user->salt = _elgg_generate_password_salt();
+		$user->password = generate_user_password($user, $password);
+		
+		$user->save();
+
+		error_log('adding to stormpath ' . $user->email);
+		$result = add_to_stormpath($user, $password);
+		
+		if ($result) {
+			// notify them of the change
+			
+			// replace tokens in the message
+			$message_m = str_replace('{{password}}', $password, $message);
+			$message_m = str_replace('{{name}}', $user->name, $message_m);
+			$message_m = str_replace('{{username}}', $user->username, $message_m);
+			$message_m = str_replace('{{email}}', $user->email, $message_m);
+			$message_m = str_replace('{{forgot_password}}', $site_url . 'forgotpassword', $message_m);
+			$message_m = str_replace('{{site_email}}', $site->email, $message_m);
+			$message_m = str_replace('{{site_url}}', $site_url, $message_m);
+		
+			notify_user($user->guid, $site->guid, $subject, $message_m, null, 'email');
+		}
+	}
 }

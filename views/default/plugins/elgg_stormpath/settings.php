@@ -2,6 +2,8 @@
 
 namespace Arck\Stormpath;
 
+echo elgg_view('stormpath/admin/navigation');
+
 echo '<div>';
 echo '<label>' . elgg_echo('stormpath:settings:keyfile:upload') . '</label><br>';
 echo elgg_view('input/file', array(
