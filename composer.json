@@ -1,5 +1,20 @@
- {
-   "require": {
-     "stormpath/sdk": "1.8.1beta"
-   }
- }
+{
+    "name": "arckinteractive/elgg_stormpath",
+    "type": "elgg-plugin",
+    "description": "Elgg SSO via the Stormpath API",
+    "homepage": "https://github.com/arckinteractive/elgg_stormpath",
+    "keywords": ["elgg", "plugin", "login", "SSO", "stormpath"],
+    "license": "GPL-2.0",
+    "authors": [
+        {
+            "name": "Matt Beckett"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/arckinteractive/elgg_stormpath/issues"
+    },
+    "require": {
+        "stormpath/sdk": "1.8.1beta",
+        "composer/installers": ">=1.0.8"
+    }
+}
