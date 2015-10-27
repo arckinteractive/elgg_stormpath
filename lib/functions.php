@@ -102,7 +102,7 @@ function import_to_stormpath() {
 		'wheres' => array(
 			'md.name_id IS NULL'
 		),
-		'limit' => 20
+		'limit' => false
 	);
 
 	$batch = new \ElggBatch('elgg_get_entities', $options);
@@ -112,9 +112,15 @@ function import_to_stormpath() {
 		// search stormpath for a matching account
 		$application = get_application();
 		$accts = $application->getAccounts(array('email' => $user->email));
+		$already_exists = false;
 		foreach ($accts as $a) {
 			$user->__stormpath_user = $a->href;
 			error_log('set user ' . $user->username . ': ' . $a->href);
+			$already_exists = true;
+			break;
+		}
+		
+		if ($already_exists) {
 			continue;
 		}
 

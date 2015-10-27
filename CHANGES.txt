@@ -2,6 +2,10 @@
 
 x.x (mm/dd/yyyy):
 
+1.2.1 (10/27/2015):
+ - fix potential fatal error on import if account already exists in stormpath
+ - fix test import limit of 20 removed - can now import entire user base in one operation
+
 1.2.0 (10/27/2015):
  - add plugin hook 'elgg_stormpath', 'import' when user is added to stormpath directory
  - add example handler for adding custom data to the stormpath account (elgg_guid)

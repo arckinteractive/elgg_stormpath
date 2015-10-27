@@ -3,7 +3,7 @@
 	<name>Elgg Stormpath</name>
         <id>elgg_stormpath</id>
 	<author>Matt Beckett (matt@arckinteractive.com)</author>
-	<version>1.2.0</version>
+	<version>1.2.1</version>
 	<description>Stormpath user authentication for Elgg</description>
 	<website>http://www.arckinteractive.com/</website>
 	<requires>
