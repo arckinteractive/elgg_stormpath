@@ -198,6 +198,7 @@ function set_user_password($hook = 'usersettings:save', $type = 'user', $return 
 
 /**
  * Add custom data to stormpath for a user
+ * return false to prevent adding to stormpath
  * 
  * @param type $hook
  * @param type $type
@@ -206,6 +207,11 @@ function set_user_password($hook = 'usersettings:save', $type = 'user', $return 
  * @return type
  */
 function stormpath_custom_data($hook, $type, $return, $params) {
+	if (!$return) {
+		// somebody already prevented the sync to stormpath
+		return $return;
+	}
+	
 	$user = $params['user'];
 	$account = $return;
 	

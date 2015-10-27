@@ -37,6 +37,11 @@ function add_to_stormpath(\ElggUser $user, $password) {
 		'account' => $account
 	);
 	$account = elgg_trigger_plugin_hook('elgg_stormpath', 'import', $params, $account);
+	
+	if ($account === false) {
+		// somebody stopped the push to stormpath
+		return false;
+	}
 
 	try {
 		$application = get_application();
