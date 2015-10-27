@@ -2,7 +2,11 @@
 
 x.x (mm/dd/yyyy):
 
-1.1.0 (09/18/2105):
+1.2.0 (10/27/2015):
+ - add plugin hook 'elgg_stormpath', 'import' when user is added to stormpath directory
+ - add example handler for adding custom data to the stormpath account (elgg_guid)
+
+1.1.0 (09/18/2015):
  - add action to bulk import all users from existing elgg into stormpath
  - add local users to stormpath on local password change
  - fix incorrect event function name

@@ -195,3 +195,22 @@ function set_user_password($hook = 'usersettings:save', $type = 'user', $return 
 
 	return false;
 }
+
+/**
+ * Add custom data to stormpath for a user
+ * 
+ * @param type $hook
+ * @param type $type
+ * @param type $return
+ * @param type $params
+ * @return type
+ */
+function stormpath_custom_data($hook, $type, $return, $params) {
+	$user = $params['user'];
+	$account = $return;
+	
+	$customData = $account->customData;
+	$customData->elgg_guid = $user->guid;
+	
+	return $account;
+}
