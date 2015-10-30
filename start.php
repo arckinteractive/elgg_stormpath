@@ -156,7 +156,9 @@ function pagehandler($page) {
 			return true;
 			break;
 		case 'login':
-			echo elgg_view('resources/stormpath/login');
+			echo elgg_view('resources/stormpath/login', array(
+				'back' => get_input('back', false)
+			));
 			return true;
 			break;
 		case 'logout':

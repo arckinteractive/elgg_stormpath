@@ -7,10 +7,20 @@ if (!$application) {
 	forward('login');
 }
 
+$login_forward = $_SESSION['last_forward_from'] ? $_SESSION['last_forward_from'] : '';
+
 try {
 	$response = $application->handleIdSiteCallback($_SERVER['REQUEST_URI']);
 } catch (\Exception $exc) {
-	register_error($exc->getMessage());
+	if ($exc->getStatus() == '404') {
+		// this can happen if logged in locally but with no active
+		// stormpath session.  So we'll just log them out
+		logout();
+		system_message(elgg_echo('stormpath:logout:success'));
+	}
+	else {
+		register_error($exc->getMessage());
+	}
 	forward();
 }
 
@@ -31,6 +41,8 @@ if (!$account) {
 }
 
 // log them in!
+unset($_SESSION['last_forward_from']);
+
 $users = elgg_get_entities_from_metadata(array(
 	'type' => 'user',
 	'metadata_name_value_pairs' => array(
@@ -41,7 +53,13 @@ $users = elgg_get_entities_from_metadata(array(
 
 if ($users) {
 	login($users[0], true);
-	forward();
+	if ($user[0]->language) {
+		$message = elgg_echo('loginok', array(), $user[0]->language);
+	} else {
+		$message = elgg_echo('loginok');
+	}
+	system_message($message);
+	forward($login_forward);
 }
 
 
@@ -64,7 +82,13 @@ if ($users) {
 	// link them for next time
 	$users[0]->__stormpath_user = $account->href;
 	login($users[0], true);
-	forward();
+	if ($user[0]->language) {
+		$message = elgg_echo('loginok', array(), $user[0]->language);
+	} else {
+		$message = elgg_echo('loginok');
+	}
+	system_message($message);
+	forward($login_forward);
 }
 
 elgg_set_context($context);
@@ -94,4 +118,10 @@ set_user_notification_setting($user->getGUID(), 'email', true);
 elgg_pop_context();
 
 login($user, true);
-forward();
+if ($user[0]->language) {
+		$message = elgg_echo('loginok', array(), $user[0]->language);
+} else {
+	$message = elgg_echo('loginok');
+}
+system_message($message);
+forward($login_forward);

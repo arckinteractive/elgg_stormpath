@@ -4,6 +4,10 @@ namespace Arck\Stormpath;
 
 $application = get_application();
 
+if ($vars['back']) {
+	$_SESSION['last_forward_from'] = $vars['back'];
+}
+
 if (!$application) {
 	forward('login');
 }
